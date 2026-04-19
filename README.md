@@ -1,0 +1,1 @@
+# market-krizoru-v1-2026
