@@ -135,4 +135,3 @@ Oyunun "beyni" şu değişkenleri eşzamanlı hesaplar:
 * **Karmaşıklık Riski:** Oyunun ekonomi tarafının kullanıcıyı yorması.
 
 * **Çözüm:** İlk 3 oyun günü boyunca aktif olan bir "AI Danışman" modu. 
-* **Çözüm:** İlk 3 oyun günü boyunca aktif olan bir "AI Danışman" modu.
