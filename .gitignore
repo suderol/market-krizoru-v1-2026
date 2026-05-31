@@ -1,0 +1,17 @@
+# Gereksiz Klasörler (GitHub'a yüklenmesini engeller)
+node_modules/
+.next/
+dist/
+build/
+
+# Gizli Şifreler ve Anahtarlar (Asla internete yüklenmemeli!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Veritabanı Dosyaları ve Loglar
+*.db
+*.log
+.DS_Store
