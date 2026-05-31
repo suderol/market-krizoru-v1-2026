@@ -44,3 +44,9 @@ npm run dev
 cd frontend
 npm install
 npm run dev
+
+
+## Canlı Önizleme Linki
+[Uygulamayı Canlıda Test Edin](https://market-krizoru.netlify.app/)
+
+---
