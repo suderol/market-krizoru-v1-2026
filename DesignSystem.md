@@ -11,7 +11,7 @@ Uygulama, finansal kriz ve simülasyon atmosferini daha net hissettirmek adına 
 
 ## 2. Renk Paleti
 
-### 🏴 Arka Plan ve Ana Gövde
+### Arka Plan ve Ana Gövde
 * **Ana Arka Plan:** `#0d1117` (Derin Gece Mavisi / Siyah)
 * **Kart Arka Planları:** `bg-white/5 backdrop-blur-md` (Yarı geçirgen beyaz, buzlu cam efektli)
 * **Kenarlıklar:** `border-white/10` (Hafif beyaz çizgi)
