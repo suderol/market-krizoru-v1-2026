@@ -1,4 +1,4 @@
-# 📄 Ürün Gereksinim Dokümanı (PRD): Market Krizörü v1.0
+# Ürün Gereksinim Dokümanı (PRD): Market Krizörü v1.0
 
 
 
@@ -131,9 +131,7 @@ Oyunun "beyni" şu değişkenleri eşzamanlı hesaplar:
 ---
 
 
-
 ## 6. Riskler ve Çözümler
-
 * **Karmaşıklık Riski:** Oyunun ekonomi tarafının kullanıcıyı yorması.
 
 * **Çözüm:** İlk 3 oyun günü boyunca aktif olan bir "AI Danışman" modu. 
