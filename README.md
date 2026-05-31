@@ -28,3 +28,19 @@ market-krizoru/
 ├── backend/          # Node.js + Express — Oyun durumu & Ekonomi Motoru API
 ├── frontend/         # Next.js (React) — Oyun Arayüzü & Dashboard
 └── prodocs/          # Yapay Zeka Ajanları ve Sistem Promptları
+
+
+---
+
+## Projeyi Yerelde Çalıştırma
+
+### 1. Backend Kurulumu
+```bash
+cd backend
+npm install
+npm run dev
+
+
+cd frontend
+npm install
+npm run dev
