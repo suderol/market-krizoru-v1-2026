@@ -15,3 +15,7 @@ build/
 *.db
 *.log
 .DS_Store
+
+node_modules/
+game.db
+.env
