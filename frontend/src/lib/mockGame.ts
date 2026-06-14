@@ -21,10 +21,10 @@ const seedProducts: InternalProduct[] = [
   { id: 1, productName: "Ekmek", productEmoji: "🍞", productType: "local", stockQuantity: 100, purchasePrice: 6, shelfPrice: 9, basePrice: 6 },
   { id: 2, productName: "Süt", productEmoji: "🥛", productType: "local", stockQuantity: 60, purchasePrice: 20, shelfPrice: 28, basePrice: 20 },
   { id: 3, productName: "Makarna", productEmoji: "🍝", productType: "local", stockQuantity: 80, purchasePrice: 12, shelfPrice: 18, basePrice: 12 },
-  { id: 4, productName: "Sıvı Yağ", productEmoji: "🫙", productType: "import_dependent", stockQuantity: 30, purchasePrice: 70, shelfPrice: 95, basePrice: 70 },
-  { id: 5, productName: "Çikolata", productEmoji: "🍫", productType: "import_dependent", stockQuantity: 40, purchasePrice: 18, shelfPrice: 26, basePrice: 18 },
+  { id: 4, productName: "Sıvı Yağ", productEmoji: "🫙", productType: "import", stockQuantity: 30, purchasePrice: 70, shelfPrice: 95, basePrice: 70 },
+  { id: 5, productName: "Çikolata", productEmoji: "🍫", productType: "import", stockQuantity: 40, purchasePrice: 18, shelfPrice: 26, basePrice: 18 },
   { id: 6, productName: "Filtre Kahve", productEmoji: "☕", productType: "import", stockQuantity: 20, purchasePrice: 130, shelfPrice: 195, basePrice: 130 },
-  { id: 7, productName: "Bebek Bezi", productEmoji: "👶", productType: "import_dependent", stockQuantity: 25, purchasePrice: 85, shelfPrice: 125, basePrice: 85 },
+  { id: 7, productName: "Bebek Bezi", productEmoji: "👶", productType: "import", stockQuantity: 25, purchasePrice: 85, shelfPrice: 125, basePrice: 85 },
   { id: 8, productName: "Enerji İçeceği", productEmoji: "⚡", productType: "import", stockQuantity: 35, purchasePrice: 35, shelfPrice: 55, basePrice: 35 }
 ];
 
