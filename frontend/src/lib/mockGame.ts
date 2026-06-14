@@ -176,7 +176,7 @@ function updatePurchasePrices(products: InternalProduct[], inflationRate: number
     let cost = p.basePrice * (1 + inflationRate);
     if (p.productType === "import") {
       cost = cost * (usdTryRate / baseUsdTryRate) * globalCustomsTariff; 
-    } else if (p.productType === "import_dependent") {
+    } else {
       cost = cost * (((usdTryRate / baseUsdTryRate) + 1) / 2);
     }
     cost += logisticsSurcharge;
