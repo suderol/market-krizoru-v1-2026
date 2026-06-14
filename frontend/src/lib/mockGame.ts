@@ -39,7 +39,7 @@ let shockNonce = 0;
 
 let globalCustomsTariff = 1.0;
 let logisticsSurcharge = 0;
-let campaignProductIds: number[] = []; // Kampanyalı ürünleri tutar
+let campaignProductIds: number[] = []; 
 
 function cloneInitialInventory(): InternalProduct[] {
   return structuredClone(seedProducts);
@@ -57,7 +57,7 @@ function initialGameState(): GameState {
 }
 
 function moodFromShelfPurchase(productId: number, shelf: number, purchase: number): Mood {
-  if (campaignProductIds.includes(productId)) return "Panik Alışı"; // Kampanya varsa doğrudan kapış kapış!
+  if (campaignProductIds.includes(productId)) return "Panik Alışı"; 
   if (!(purchase > 0)) return "Normal";
   const ratio = shelf / purchase;
   if (ratio > 1.45) return "Fırsatçı"; 
@@ -119,7 +119,7 @@ export function restoreLastSyncBaseline(): void {
 
 function processDynamicMacroEconomy() {
   const roll = Math.random();
-  campaignProductIds = []; // Her tick başında eski kampanyalar sıfırlanır, denge kurulur.
+  campaignProductIds = []; 
   
   if (roll < 0.12) {
     const impact = Math.random() * 0.05 + 0.02; 
@@ -257,20 +257,18 @@ export function applyQuickRaise(productId: number): Product {
   return applySetShelfPrice(productId, p.shelfPrice * 1.1);
 }
 
-// 🏷️ YENİ ÖZELLİK: Kampanya Yap Buton Fonksiyonu
 export function applyCampaignDiscount(productId: number): Product {
   const p = inventory.find((p) => p.id === productId)!;
   if (!campaignProductIds.includes(productId)) {
     campaignProductIds.push(productId);
   }
-  return applySetShelfPrice(productId, p.shelfPrice * 0.85); // %15 indirim uygula
+  return applySetShelfPrice(productId, p.shelfPrice * 0.85); 
 }
 
-// 🏢 YENİ ÖZELLİK: Dükkanı Büyütme Fonksiyonu
 export function applyUpgradeStore(): void {
   if (gameState.cashBalance < 3000) throw new Error("Yetersiz bakiye");
   gameState.cashBalance -= 3000;
-  currentBaseSaleRate += 2; // Temel satış hızı kalıcı olarak artar
+  currentBaseSaleRate += 2; 
   pushEvent({
     eventType: "policy_shock",
     description: `🏢 YATIRIM: Mağazayı genişlettiniz! Raf kapasitesi arttı, müşteri akışı hızlandı.`,
@@ -290,10 +288,9 @@ export function applyRestock(productId: number, quantity: number): void {
   gameState = { ...gameState, cashBalance: gameState.cashBalance - cost };
 }
 
-// 💰 YENİ ÖZELLİK: Toptancıdan Vadeli Alım Fonksiyonu
 export function applyCreditRestock(productId: number, quantity: number): void {
   const p = inventory.find((p) => p.id === productId)!;
-  const creditCost = (p.purchasePrice * 1.20) * quantity; // %20 vade farkı maliyeti
+  const creditCost = (p.purchasePrice * 1.20) * quantity; 
   inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
   
   pushEvent({
