@@ -1,6 +1,5 @@
 /**
- * Yerel mock motoru kullanır. Backend bağlandığında `NEXT_PUBLIC_API_URL`
- * ile axios tabanlı istekler eklenebilir.
+ * Yerel mock motoru kullanır. Projenin tarayıcıda bağımsız çalışmasını sağlar.
  */
 
 import type { GameState, Product } from "@/lib/types";
@@ -13,6 +12,9 @@ import {
   getPublicGameState,
   resetGame as mockReset,
   syncEngine,
+  applyCampaignDiscount as mockCampaign,
+  applyUpgradeStore as mockUpgrade,
+  applyCreditRestock as mockCreditRestock
 } from "@/lib/mockGame";
 
 export async function getState(): Promise<GameState> {
@@ -72,4 +74,22 @@ export async function resetGame(): Promise<void> {
     console.error("[api] resetGame", err);
     throw err instanceof Error ? err : new Error(String(err));
   }
+}
+
+// 🏷️ Kampanya API Tanımı
+export async function campaignDiscount(productId: number): Promise<Product> {
+  syncEngine();
+  return mockCampaign(productId);
+}
+
+// 🏢 Mağaza Büyütme API Tanımı
+export async function upgradeStore(): Promise<void> {
+  syncEngine();
+  mockUpgrade();
+}
+
+// 💰 Vadeli Alım API Tanımı
+export async function creditRestock(productId: number, quantity: number): Promise<void> {
+  syncEngine();
+  mockCreditRestock(productId, quantity);
 }
