@@ -11,73 +11,22 @@ type InternalProduct = Omit<Product, "customerMood"> & {
   basePrice: number;
 };
 
-const INITIAL_CASH = 10_000;
-const BASE_USD_TRY = 32;
+const INITIAL_CASH = 15_000;
+const BASE_USD_TRY = 45.0; 
 const TICK_MS = 5000;
 const DAY_MS = 60_000;
-const BASE_SALE_RATE = 6;
+let currentBaseSaleRate = 6; 
 
 const seedProducts: InternalProduct[] = [
-  {
-    id: 1,
-    productName: "Ekmek",
-    productEmoji: "🍞",
-    productType: "local",
-    stockQuantity: 100,
-    purchasePrice: 5,
-    shelfPrice: 7,
-    basePrice: 5,
-  },
-  {
-    id: 2,
-    productName: "Süt",
-    productEmoji: "🥛",
-    productType: "local",
-    stockQuantity: 50,
-    purchasePrice: 18,
-    shelfPrice: 24,
-    basePrice: 18,
-  },
-  {
-    id: 3,
-    productName: "Sıvı Yağ",
-    productEmoji: "🫙",
-    productType: "import",
-    stockQuantity: 30,
-    purchasePrice: 65,
-    shelfPrice: 85,
-    basePrice: 65,
-  },
+  { id: 1, productName: "Ekmek", productEmoji: "🍞", productType: "local", stockQuantity: 100, purchasePrice: 6, shelfPrice: 9, basePrice: 6 },
+  { id: 2, productName: "Süt", productEmoji: "🥛", productType: "local", stockQuantity: 60, purchasePrice: 20, shelfPrice: 28, basePrice: 20 },
+  { id: 3, productName: "Makarna", productEmoji: "🍝", productType: "local", stockQuantity: 80, purchasePrice: 12, shelfPrice: 18, basePrice: 12 },
+  { id: 4, productName: "Sıvı Yağ", productEmoji: "🫙", productType: "import_dependent", stockQuantity: 30, purchasePrice: 70, shelfPrice: 95, basePrice: 70 },
+  { id: 5, productName: "Çikolata", productEmoji: "🍫", productType: "import_dependent", stockQuantity: 40, purchasePrice: 18, shelfPrice: 26, basePrice: 18 },
+  { id: 6, productName: "Filtre Kahve", productEmoji: "☕", productType: "import", stockQuantity: 20, purchasePrice: 130, shelfPrice: 195, basePrice: 130 },
+  { id: 7, productName: "Bebek Bezi", productEmoji: "👶", productType: "import_dependent", stockQuantity: 25, purchasePrice: 85, shelfPrice: 125, basePrice: 85 },
+  { id: 8, productName: "Enerji İçeceği", productEmoji: "⚡", productType: "import", stockQuantity: 35, purchasePrice: 35, shelfPrice: 55, basePrice: 35 }
 ];
-
-function cloneInitialInventory(): InternalProduct[] {
-  return structuredClone(seedProducts);
-}
-
-function initialGameState(): GameState {
-  return {
-    cashBalance: INITIAL_CASH,
-    gameDay: 1,
-    inflationRate: 0.001,
-    usdTryRate: BASE_USD_TRY,
-    isBankrupt: false,
-    recentEvents: [],
-  };
-}
-
-function moodFromShelfPurchase(shelf: number, purchase: number): Mood {
-  if (!(purchase > 0)) return "Normal";
-  const ratio = shelf / purchase;
-  if (ratio > 1.4) return "Fırsatçı";
-  if (shelf < purchase) return "Panik Alışı";
-  return "Normal";
-}
-
-function salesMultiplier(mood: Mood): number {
-  if (mood === "Fırsatçı") return 0;
-  if (mood === "Panik Alışı") return 5;
-  return 1;
-}
 
 let gameState = initialGameState();
 let inventory = cloneInitialInventory();
@@ -88,6 +37,40 @@ let tickDebtMs = 0;
 let dayDebtMs = 0;
 let shockNonce = 0;
 
+let globalCustomsTariff = 1.0;
+let logisticsSurcharge = 0;
+let campaignProductIds: number[] = []; // Kampanyalı ürünleri tutar
+
+function cloneInitialInventory(): InternalProduct[] {
+  return structuredClone(seedProducts);
+}
+
+function initialGameState(): GameState {
+  return {
+    cashBalance: INITIAL_CASH,
+    gameDay: 1,
+    inflationRate: 0.15, 
+    usdTryRate: BASE_USD_TRY,
+    isBankrupt: false,
+    recentEvents: [],
+  };
+}
+
+function moodFromShelfPurchase(productId: number, shelf: number, purchase: number): Mood {
+  if (campaignProductIds.includes(productId)) return "Panik Alışı"; // Kampanya varsa doğrudan kapış kapış!
+  if (!(purchase > 0)) return "Normal";
+  const ratio = shelf / purchase;
+  if (ratio > 1.45) return "Fırsatçı"; 
+  if (ratio <= 1.05) return "Panik Alışı"; 
+  return "Normal";
+}
+
+function salesMultiplier(mood: Mood): number {
+  if (mood === "Fırsatçı") return 0.1;
+  if (mood === "Panik Alışı") return 3.5;
+  return 1;
+}
+
 export function getShockNonce(): number {
   return shockNonce;
 }
@@ -97,18 +80,16 @@ function pushEvent(ev: GameEvent) {
   gameState = { ...gameState, recentEvents: recentEventsRing };
 }
 
-function bumpInflation(currentRate: number): number {
-  return currentRate + (Math.random() * 0.0004 + 0.0001);
+function adjustInflation(currentRate: number, trend: "up" | "down" | "stable"): number {
+  const change = Math.random() * 0.005;
+  if (trend === "up") return Math.min(currentRate + change, 0.85); 
+  if (trend === "down") return Math.max(currentRate - change, 0.05); 
+  return currentRate + (Math.random() * 0.002 - 0.001); 
 }
 
 export function syncEngine(nowMs?: number): void {
   if (gameState.isBankrupt) return;
-  const now =
-    typeof nowMs === "number"
-      ? nowMs
-      : typeof performance !== "undefined"
-        ? performance.now()
-        : Date.now();
+  const now = typeof nowMs === "number" ? nowMs : typeof performance !== "undefined" ? performance.now() : Date.now();
   if (!Number.isFinite(lastSyncAt)) {
     lastSyncAt = now;
     return;
@@ -131,46 +112,84 @@ export function syncEngine(nowMs?: number): void {
 }
 
 export function restoreLastSyncBaseline(): void {
-  lastSyncAt =
-    typeof performance !== "undefined" ? performance.now() : Date.now();
+  lastSyncAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   tickDebtMs = 0;
   dayDebtMs = 0;
 }
 
-function triggerCurrencyShock(usdTryRate: number): {
-  newUsdTryRate: number;
-  shockTriggered: boolean;
-  impactFactor: number;
-} {
-  if (Math.random() >= 0.15) {
-    return { newUsdTryRate: usdTryRate, shockTriggered: false, impactFactor: 0 };
+function processDynamicMacroEconomy() {
+  const roll = Math.random();
+  campaignProductIds = []; // Her tick başında eski kampanyalar sıfırlanır, denge kurulur.
+  
+  if (roll < 0.12) {
+    const impact = Math.random() * 0.05 + 0.02; 
+    gameState.usdTryRate = gameState.usdTryRate * (1 + impact);
+    gameState.inflationRate = adjustInflation(gameState.inflationRate, "up");
+    shockNonce += 1;
+    pushEvent({
+      eventType: "currency_shock",
+      description: `💵 DÖVİZ BASKISI: Küresel gelişmelerle Dolar/TL yükseldi. İthal maliyetleri artıyor.`,
+      impactFactor: impact,
+    });
+  } 
+  else if (roll >= 0.12 && roll < 0.24) {
+    const drop = Math.random() * 0.03 + 0.02; 
+    gameState.usdTryRate = Math.max(gameState.usdTryRate * (1 - drop), BASE_USD_TRY * 0.85);
+    gameState.inflationRate = adjustInflation(gameState.inflationRate, "down");
+    currentBaseSaleRate = Math.max(2.5, currentBaseSaleRate - 2); 
+    pushEvent({
+      eventType: "policy_shock",
+      description: `🏛️ FAİZ ARTIRILDI: Merkez Bankası faiz artırdı, Dolar geriledi! Piyasa yavaşlıyor, kampanya yapma zamanı!`,
+      impactFactor: drop,
+    });
+  } 
+  else if (roll >= 0.24 && roll < 0.34) {
+    currentBaseSaleRate += 2; 
+    const rise = Math.random() * 0.02 + 0.01;
+    gameState.usdTryRate = gameState.usdTryRate * (1 + rise);
+    pushEvent({
+      eventType: "policy_shock",
+      description: `🎉 FAİZ İNDİRİMİ: Tüketim çılgınlığı başladı, mağazada satış hızları artıyor!`,
+      impactFactor: rise,
+    });
   }
-  const impactFactor = Math.random() * 0.1 + 0.1;
-  const newUsdTryRate = usdTryRate * (1 + impactFactor);
-  return { newUsdTryRate, shockTriggered: true, impactFactor };
+  else if (roll >= 0.34 && roll < 0.42) {
+    logisticsSurcharge = 12; 
+    pushEvent({
+      eventType: "logistics_premium",
+      description: `⛽ LOJİSTİK DARBOĞAZI: Akaryakıt zammı nakliye maliyetlerini artırdı.`,
+      impactFactor: 0.2,
+    });
+  }
+  else {
+    globalCustomsTariff = 1.0;
+    logisticsSurcharge = 0;
+    gameState.inflationRate = adjustInflation(gameState.inflationRate, "stable");
+    if (gameState.usdTryRate > BASE_USD_TRY * 1.25) {
+      gameState.usdTryRate = gameState.usdTryRate * 0.97; 
+    }
+  }
 }
 
-function updatePurchasePrices(
-  products: InternalProduct[],
-  inflationRate: number,
-  usdTryRate: number,
-  baseUsdTryRate: number,
-): InternalProduct[] {
+function updatePurchasePrices(products: InternalProduct[], inflationRate: number, usdTryRate: number, baseUsdTryRate: number): InternalProduct[] {
   return products.map((p) => {
-    if (p.productType === "local") {
-      return { ...p, purchasePrice: p.basePrice * (1 + inflationRate) };
+    let cost = p.basePrice * (1 + inflationRate);
+    if (p.productType === "import") {
+      cost = cost * (usdTryRate / baseUsdTryRate) * globalCustomsTariff; 
+    } else if (p.productType === "import_dependent") {
+      cost = cost * (((usdTryRate / baseUsdTryRate) + 1) / 2);
     }
-    const rateRatio = usdTryRate / baseUsdTryRate;
-    return { ...p, purchasePrice: p.basePrice * (1 + inflationRate) * rateRatio };
+    cost += logisticsSurcharge;
+    return { ...p, purchasePrice: cost };
   });
 }
 
 function processSales(state: GameState, products: InternalProduct[]): { state: GameState; products: InternalProduct[] } {
   let cash = state.cashBalance;
   const nextProducts = products.map((p) => {
-    const mood = moodFromShelfPurchase(p.shelfPrice, p.purchasePrice);
+    const mood = moodFromShelfPurchase(p.id, p.shelfPrice, p.purchasePrice);
     const mult = salesMultiplier(mood);
-    const proposed = Math.floor(BASE_SALE_RATE * mult);
+    const proposed = Math.floor(currentBaseSaleRate * mult);
     const sold = Math.min(p.stockQuantity, proposed);
     if (sold <= 0) return { ...p, stockQuantity: p.stockQuantity };
     cash += sold * p.shelfPrice;
@@ -184,33 +203,11 @@ export function checkBankruptcy(cashBalance: number): boolean {
 }
 
 function processTickInternal(): void {
-  const infl = bumpInflation(gameState.inflationRate);
-  gameState = { ...gameState, inflationRate: infl };
-
-  let usd = gameState.usdTryRate;
-  const shock = triggerCurrencyShock(usd);
-  if (shock.shockTriggered) {
-    usd = shock.newUsdTryRate;
-    gameState = { ...gameState, usdTryRate: usd };
-    shockNonce += 1;
-    pushEvent({
-      eventType: "currency_shock",
-      description: "Dolar fırladı!",
-      impactFactor: shock.impactFactor,
-    });
-  }
-
-  inventory = updatePurchasePrices(
-    inventory,
-    gameState.inflationRate,
-    gameState.usdTryRate,
-    BASE_USD_TRY,
-  );
-
+  processDynamicMacroEconomy();
+  inventory = updatePurchasePrices(inventory, gameState.inflationRate, gameState.usdTryRate, BASE_USD_TRY);
   const afterSales = processSales(gameState, inventory);
   gameState = afterSales.state;
   inventory = afterSales.products;
-
   if (checkBankruptcy(gameState.cashBalance)) {
     gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
   }
@@ -221,17 +218,16 @@ function publicProduct(row: InternalProduct): Product {
     id: row.id,
     productName: row.productName,
     productEmoji: row.productEmoji,
-    productType: row.productType,
+    productType: row.productType === "local" ? "local" : "import", 
     stockQuantity: row.stockQuantity,
     purchasePrice: row.purchasePrice,
     shelfPrice: row.shelfPrice,
-    customerMood: moodFromShelfPurchase(row.shelfPrice, row.purchasePrice),
+    customerMood: moodFromShelfPurchase(row.id, row.shelfPrice, row.purchasePrice),
   };
 }
 
 export function getPublicGameState(): GameState {
-  const ev = [...recentEventsRing];
-  return { ...gameState, recentEvents: ev };
+  return { ...gameState, recentEvents: [...recentEventsRing] };
 }
 
 export function getInventory(): Product[] {
@@ -243,45 +239,66 @@ export function resetGame(): void {
   inventory = cloneInitialInventory();
   recentEventsRing = [];
   shockNonce = 0;
+  currentBaseSaleRate = 6;
+  globalCustomsTariff = 1.0;
+  logisticsSurcharge = 0;
+  campaignProductIds = [];
   restoreLastSyncBaseline();
 }
 
 export function applySetShelfPrice(productId: number, shelf: number): Product {
   if (!(shelf > 0) || !Number.isFinite(shelf)) throw new Error("Geçersiz fiyat");
-  const exists = inventory.some((p) => p.id === productId);
-  if (!exists) throw new Error("Ürün bulunamadı");
-  inventory = inventory.map((p) =>
-    p.id === productId ? { ...p, shelfPrice: shelf } : p,
-  );
-  const row = inventory.find((p) => p.id === productId)!;
-  return publicProduct(row);
+  inventory = inventory.map((p) => p.id === productId ? { ...p, shelfPrice: shelf } : p);
+  return publicProduct(inventory.find((p) => p.id === productId)!);
 }
 
 export function applyQuickRaise(productId: number): Product {
-  const idx = inventory.findIndex((p) => p.id === productId);
-  if (idx === -1) throw new Error("Ürün bulunamadı");
-  const p = inventory[idx]!;
-  const shelf = p.shelfPrice * 1.1;
-  return applySetShelfPrice(productId, shelf);
+  const p = inventory.find((p) => p.id === productId)!;
+  return applySetShelfPrice(productId, p.shelfPrice * 1.1);
+}
+
+// 🏷️ YENİ ÖZELLİK: Kampanya Yap Buton Fonksiyonu
+export function applyCampaignDiscount(productId: number): Product {
+  const p = inventory.find((p) => p.id === productId)!;
+  if (!campaignProductIds.includes(productId)) {
+    campaignProductIds.push(productId);
+  }
+  return applySetShelfPrice(productId, p.shelfPrice * 0.85); // %15 indirim uygula
+}
+
+// 🏢 YENİ ÖZELLİK: Dükkanı Büyütme Fonksiyonu
+export function applyUpgradeStore(): void {
+  if (gameState.cashBalance < 3000) throw new Error("Yetersiz bakiye");
+  gameState.cashBalance -= 3000;
+  currentBaseSaleRate += 2; // Temel satış hızı kalıcı olarak artar
+  pushEvent({
+    eventType: "policy_shock",
+    description: `🏢 YATIRIM: Mağazayı genişlettiniz! Raf kapasitesi arttı, müşteri akışı hızlandı.`,
+    impactFactor: 0.2
+  });
 }
 
 export function applyRestock(productId: number, quantity: number): void {
-  if (!(quantity > 0) || !Number.isFinite(quantity)) throw new Error("Geçersiz adet");
-  const idx = inventory.findIndex((p) => p.id === productId);
-  if (idx === -1) throw new Error("Ürün bulunamadı");
-  const p = inventory[idx]!;
+  const p = inventory.find((p) => p.id === productId)!;
   const cost = p.purchasePrice * quantity;
   if (gameState.cashBalance < cost) {
     const err = new Error("Yetersiz bakiye");
-    (err as Error & { body: RestockErrorBody }).body = {
-      error: "Yetersiz bakiye",
-      required: cost,
-      available: gameState.cashBalance,
-    };
+    (err as any).body = { error: "Yetersiz bakiye", required: cost, available: gameState.cashBalance };
     throw err;
   }
-  inventory = inventory.map((row) =>
-    row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row,
-  );
+  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
   gameState = { ...gameState, cashBalance: gameState.cashBalance - cost };
+}
+
+// 💰 YENİ ÖZELLİK: Toptancıdan Vadeli Alım Fonksiyonu
+export function applyCreditRestock(productId: number, quantity: number): void {
+  const p = inventory.find((p) => p.id === productId)!;
+  const creditCost = (p.purchasePrice * 1.20) * quantity; // %20 vade farkı maliyeti
+  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
+  
+  pushEvent({
+    eventType: "logistics_premium",
+    description: `💳 VADELİ ALIM: ${p.productEmoji} ${p.productName} ürünü %20 vade farkıyla geleceğe borçlanılarak alındı!`,
+    impactFactor: 0.2
+  });
 }

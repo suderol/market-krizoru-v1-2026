@@ -15,9 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Market Krizörü",
-  description: "Gamified fintech market simülatörü — MVP arayüzü (mock veri).",
+export const metadata = {
+  title: "Market Krizörü v1.0",
+  description: "Geliştirici: Sude Erol",
+  manifest: "/manifest.json", // Tarayıcıya bunun indirilebilir bir mobil uygulama olduğunu söyleyen sihirli satır!
 };
 
 export default function RootLayout({

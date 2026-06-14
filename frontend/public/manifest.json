@@ -1,0 +1,18 @@
+{
+  "theme_color": "#020617",
+  "background_color": "#020617",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "name": "Market Krizörü v1.0",
+  "short_name": "Krizör",
+  "description": "Sude Erol tarafından geliştirilen makroekonomik kriz ve market yönetim simülasyonu.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/872/872243.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
