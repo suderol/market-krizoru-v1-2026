@@ -17,6 +17,9 @@ const TICK_MS = 5000;
 const DAY_MS = 60_000;
 let currentBaseSaleRate = 6; 
 
+// Lojistik altyapı yatırımını kontrol eden değişken
+let isLogisticsUpgraded = false;
+
 const seedProducts: InternalProduct[] = [
   { id: 1, productName: "Ekmek", productEmoji: "🍞", productType: "local", stockQuantity: 100, purchasePrice: 6, shelfPrice: 9, basePrice: 6 },
   { id: 2, productName: "Süt", productEmoji: "🥛", productType: "local", stockQuantity: 60, purchasePrice: 20, shelfPrice: 28, basePrice: 20 },
@@ -179,20 +182,19 @@ function updatePurchasePrices(products: InternalProduct[], inflationRate: number
     } else {
       cost = cost * (((usdTryRate / baseUsdTryRate) + 1) / 2);
     }
-    cost += logisticsSurcharge;
+    
+    // EĞER lojistik yatırımı yapıldıysa, lojistik zammını %50 (yarı yarıya) yansıtıyoruz
+    const activeLogisticsSurcharge = isLogisticsUpgraded ? (logisticsSurcharge / 2) : logisticsSurcharge;
+    cost += activeLogisticsSurcharge;
+    
     return { ...p, purchasePrice: cost };
   });
 }
 
-// İSTEDİĞİN DÜZELTME: Artık kendi kendine otomatik arka plan satışı yapılmıyor!
 function processSales(state: GameState, products: InternalProduct[]): { state: GameState; products: InternalProduct[] } {
-  // Sude istediği için kendi kendine durduk yere ciro/satış yapılması engellendi.
-  // Sadece ürünlerin mevcut durumları korunarak geri dönülüyor.
   return { state, products };
 }
 
-// YENİ EKONOMİK TETİKLEYİCİ: Sunum videosunda "Müşterileri Çağır / Satış Yap" butonuna 
-// bastığında ya da sen manuel bir aksiyon aldığında satışın gerçekleşmesi için fonksiyon:
 export function triggerManualSales(): void {
   if (gameState.isBankrupt) return;
   
@@ -200,129 +202,4 @@ export function triggerManualSales(): void {
   const nextProducts = inventory.map((p) => {
     const mood = moodFromShelfPurchase(p.id, p.shelfPrice, p.purchasePrice);
     const mult = salesMultiplier(mood);
-    const proposed = Math.floor(currentBaseSaleRate * mult);
-    const sold = Math.min(p.stockQuantity, proposed);
-    if (sold <= 0) return { ...p, stockQuantity: p.stockQuantity };
-    cash += sold * p.shelfPrice;
-    return { ...p, stockQuantity: p.stockQuantity - sold };
-  });
-
-  gameState = { ...gameState, cashBalance: cash };
-  inventory = nextProducts;
-
-  if (checkBankruptcy(gameState.cashBalance)) {
-    gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
-  }
-}
-
-export function checkBankruptcy(cashBalance: number): boolean {
-  return cashBalance <= 0;
-}
-
-function processTickInternal(): void {
-  processDynamicMacroEconomy();
-  inventory = updatePurchasePrices(inventory, gameState.inflationRate, gameState.usdTryRate, BASE_USD_TRY);
-  const afterSales = processSales(gameState, inventory);
-  gameState = afterSales.state;
-  inventory = afterSales.products;
-  if (checkBankruptcy(gameState.cashBalance)) {
-    gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
-  }
-}
-
-function publicProduct(row: InternalProduct): Product {
-  return {
-    id: row.id,
-    productName: row.productName,
-    productEmoji: row.productEmoji,
-    productType: row.productType === "local" ? "local" : "import", 
-    stockQuantity: row.stockQuantity,
-    purchasePrice: row.purchasePrice,
-    shelfPrice: row.shelfPrice,
-    customerMood: moodFromShelfPurchase(row.id, row.shelfPrice, row.purchasePrice),
-  };
-}
-
-export function getPublicGameState(): GameState {
-  return { ...gameState, recentEvents: [...recentEventsRing] };
-}
-
-export function getInventory(): Product[] {
-  return inventory.map(publicProduct);
-}
-
-export function resetGame(): void {
-  gameState = initialGameState();
-  inventory = cloneInitialInventory();
-  recentEventsRing = [];
-  shockNonce = 0;
-  currentBaseSaleRate = 6;
-  globalCustomsTariff = 1.0;
-  logisticsSurcharge = 0;
-  campaignProductIds = [];
-  restoreLastSyncBaseline();
-}
-
-export function applySetShelfPrice(productId: number, shelf: number): Product {
-  if (!(shelf > 0) || !Number.isFinite(shelf)) throw new Error("Geçersiz fiyat");
-  inventory = inventory.map((p) => p.id === productId ? { ...p, shelfPrice: shelf } : p);
-  return publicProduct(inventory.find((p) => p.id === productId)!);
-}
-
-export function applyQuickRaise(productId: number): Product {
-  const p = inventory.find((p) => p.id === productId)!;
-  return applySetShelfPrice(productId, p.shelfPrice * 1.1);
-}
-
-export function applyCampaignDiscount(productId: number): Product {
-  const p = inventory.find((p) => p.id === productId)!;
-  if (!campaignProductIds.includes(productId)) {
-    campaignProductIds.push(productId);
-  }
-  return applySetShelfPrice(productId, p.shelfPrice * 0.85); 
-}
-
-export function applyUpgradeStore(): void {
-  if (gameState.cashBalance < 3000) throw new Error("Yetersiz bakiye");
-  gameState.cashBalance -= 3000;
-  currentBaseSaleRate += 2; 
-  pushEvent({
-    eventType: "policy_shock",
-    description: `🏢 YATIRIM: Mağazayı genişlettiniz! Raf kapasitesi arttı, müşteri akışı hızlandı.`,
-    impactFactor: 0.2
-  });
-}
-
-export function applyRestock(productId: number, quantity: number): void {
-  const p = inventory.find((p) => p.id === productId)!;
-  const cost = p.purchasePrice * quantity;
-  if (gameState.cashBalance < cost) {
-    const err = new Error("Yetersiz bakiye");
-    (err as any).body = { error: "Yetersiz bakiye", required: cost, available: gameState.cashBalance };
-    throw err;
-  }
-  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
-  gameState = { ...gameState, cashBalance: gameState.cashBalance - cost };
-}
-
-export function applyCreditRestock(productId: number, quantity: number): void {
-  const p = inventory.find((p) => p.id === productId)!;
-  const creditCost = (p.purchasePrice * 1.20) * quantity; 
-  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
-  
-  pushEvent({
-    eventType: "logistics_premium",
-    description: `💳 VADELİ ALIM: ${p.productEmoji} ${p.productName} ürünü %20 vade farkıyla geleceğe borçlanılarak alındı!`,
-    impactFactor: 0.2
-  });
-}
-// Belli bir üründen, senin belirlediğin adet ve fiyata göre manuel satış yapar
-export function applyManualSale(productId: number, qty: number, customPrice: number): void {
-  // gameState.products içinde arama yaparken her ürünün tipi 'any' veya 'InternalProduct' olmalı
-  const product = gameState.products.find((p: any) => p.id === productId);
-  if (!product) throw new Error("Ürün bulunamadı");
-  if (product.stockQuantity < qty) throw new Error("Yetersiz stok!");
-
-  product.stockQuantity -= qty;
-  gameState.cashBalance += qty * customPrice;
-}
+    const proposed = Math.
