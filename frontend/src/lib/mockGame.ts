@@ -183,7 +183,6 @@ function updatePurchasePrices(products: InternalProduct[], inflationRate: number
       cost = cost * (((usdTryRate / baseUsdTryRate) + 1) / 2);
     }
     
-    // EĞER lojistik yatırımı yapıldıysa, lojistik zammını %50 (yarı yarıya) yansıtıyoruz
     const activeLogisticsSurcharge = isLogisticsUpgraded ? (logisticsSurcharge / 2) : logisticsSurcharge;
     cost += activeLogisticsSurcharge;
     
@@ -202,4 +201,107 @@ export function triggerManualSales(): void {
   const nextProducts = inventory.map((p) => {
     const mood = moodFromShelfPurchase(p.id, p.shelfPrice, p.purchasePrice);
     const mult = salesMultiplier(mood);
-    const proposed = Math.
+    const proposed = Math.floor(currentBaseSaleRate * mult);
+    const sold = Math.min(p.stockQuantity, proposed);
+    if (sold <= 0) return { ...p, stockQuantity: p.stockQuantity };
+    cash += sold * p.shelfPrice;
+    return { ...p, stockQuantity: p.stockQuantity - sold };
+  });
+
+  gameState = { ...gameState, cashBalance: cash };
+  inventory = nextProducts;
+
+  if (checkBankruptcy(gameState.cashBalance)) {
+    gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
+  }
+}
+
+export function checkBankruptcy(cashBalance: number): boolean {
+  return cashBalance <= 0;
+}
+
+function processTickInternal(): void {
+  processDynamicMacroEconomy();
+  inventory = updatePurchasePrices(inventory, gameState.inflationRate, gameState.usdTryRate, BASE_USD_TRY);
+  const afterSales = processSales(gameState, inventory);
+  gameState = afterSales.state;
+  inventory = afterSales.products;
+  if (checkBankruptcy(gameState.cashBalance)) {
+    gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
+  }
+}
+
+function publicProduct(row: InternalProduct): Product {
+  return {
+    id: row.id,
+    productName: row.productName,
+    productEmoji: row.productEmoji,
+    productType: row.productType === "local" ? "local" : "import", 
+    stockQuantity: row.stockQuantity,
+    purchasePrice: row.purchasePrice,
+    shelfPrice: row.shelfPrice,
+    customerMood: moodFromShelfPurchase(row.id, row.shelfPrice, row.purchasePrice),
+  };
+}
+
+export function getPublicGameState(): GameState {
+  return { ...gameState, recentEvents: [...recentEventsRing] };
+}
+
+export function getInventory(): Product[] {
+  return inventory.map(publicProduct);
+}
+
+export function resetGame(): void {
+  gameState = initialGameState();
+  inventory = cloneInitialInventory();
+  recentEventsRing = [];
+  shockNonce = 0;
+  currentBaseSaleRate = 6;
+  globalCustomsTariff = 1.0;
+  logisticsSurcharge = 0;
+  campaignProductIds = [];
+  isLogisticsUpgraded = false;
+  restoreLastSyncBaseline();
+}
+
+export function applySetShelfPrice(productId: number, shelf: number): Product {
+  if (!(shelf > 0) || !Number.isFinite(shelf)) throw new Error("Geçersiz fiyat");
+  inventory = inventory.map((p) => p.id === productId ? { ...p, shelfPrice: shelf } : p);
+  return publicProduct(inventory.find((p) => p.id === productId)!);
+}
+
+export function applyQuickRaise(productId: number): Product {
+  const p = inventory.find((p) => p.id === productId)!;
+  return applySetShelfPrice(productId, p.shelfPrice * 1.1);
+}
+
+export function applyCampaignDiscount(productId: number): Product {
+  const p = inventory.find((p) => p.id === productId)!;
+  if (!campaignProductIds.includes(productId)) {
+    campaignProductIds.push(productId);
+  }
+  return applySetShelfPrice(productId, p.shelfPrice * 0.85); 
+}
+
+export function applyUpgradeStore(): void {
+  if (gameState.cashBalance < 3000) throw new Error("Yetersiz bakiye");
+  gameState.cashBalance -= 3000;
+  isLogisticsUpgraded = true;
+  
+  pushEvent({
+    eventType: "policy_shock",
+    description: `🚚 LOJİSTİK YATIRIMI: Depo ve dağıtım ağını optimize ettiniz! Akaryakıt zamları artık maliyetlerinizi %50 daha az etkileyecek.`,
+    impactFactor: 0.5
+  });
+}
+
+export function applyRestock(productId: number, quantity: number): void {
+  const p = inventory.find((p) => p.id === productId)!;
+  const cost = p.purchasePrice * quantity;
+  if (gameState.cashBalance < cost) {
+    const err = new Error("Yetersiz bakiye");
+    (err as any).body = { error: "Yetersiz bakiye", required: cost, available: gameState.cashBalance };
+    throw err;
+  }
+  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity }
