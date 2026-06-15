@@ -17,7 +17,6 @@ const TICK_MS = 5000;
 const DAY_MS = 60_000;
 let currentBaseSaleRate = 6; 
 
-// Lojistik altyapı yatırımını kontrol eden değişken
 let isLogisticsUpgraded = false;
 
 const seedProducts: InternalProduct[] = [
@@ -304,4 +303,26 @@ export function applyRestock(productId: number, quantity: number): void {
     (err as any).body = { error: "Yetersiz bakiye", required: cost, available: gameState.cashBalance };
     throw err;
   }
-  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity }
+  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
+  gameState = { ...gameState, cashBalance: gameState.cashBalance - cost };
+}
+
+export function applyCreditRestock(productId: number, quantity: number): void {
+  const p = inventory.find((p) => p.id === productId)!;
+  inventory = inventory.map((row) => row.id === productId ? { ...row, stockQuantity: row.stockQuantity + quantity } : row);
+  
+  pushEvent({
+    eventType: "logistics_premium",
+    description: `💳 VADELİ ALIM: ${p.productEmoji} ${p.productName} ürünü %20 vade farkıyla geleceğe borçlanılarak alındı!`,
+    impactFactor: 0.2
+  });
+}
+
+export function applyManualSale(productId: number, qty: number, customPrice: number): void {
+  const product = inventory.find((p) => p.id === productId);
+  if (!product) throw new Error("Ürün bulunamadı");
+  if (product.stockQuantity < qty) throw new Error("Yetersiz stok!");
+
+  product.stockQuantity -= qty;
+  gameState.cashBalance += qty * customPrice;
+}
