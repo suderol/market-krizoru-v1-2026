@@ -1,18 +1,23 @@
 import React, { useState } from "react";
-import { cn, spacing, typography, colors } from "@/lib/designSystem";
+import { cn } from "@/lib/designSystem";
 import type { Product } from "@/lib/types";
+import { applyManualSale } from "@/lib/mockGame"; // Yeni eklediğimiz motor fonksiyonu
 
 type Props = {
   product: Product;
   onSetPrice: (id: number, val: number) => void;
   onQuickRaise: (id: number) => void;
-  onCampaign: (id: number) => void; // Kampanya tetikleyicisi
+  onCampaign: (id: number) => void; 
   onRestock: (id: number, qty: number) => void;
-  onCreditRestock: (id: number, qty: number) => void; // Vadeli alım tetikleyicisi
+  onCreditRestock: (id: number, qty: number) => void; 
 };
 
 export function ProductCard({ product, onSetPrice, onQuickRaise, onCampaign, onRestock, onCreditRestock }: Props) {
   const [inputVal, setInputVal] = useState("");
+  
+  // Manuel Satış için State'ler
+  const [saleQty, setSaleQty] = useState("");
+  const [salePrice, setSalePrice] = useState("");
 
   const moodColors: Record<Product["customerMood"], string> = {
     Normal: "text-slate-300 bg-slate-800/50",
@@ -55,7 +60,7 @@ export function ProductCard({ product, onSetPrice, onQuickRaise, onCampaign, onR
             <p className="text-base font-bold text-amber-400 tabular-nums mt-0.5">{product.purchasePrice.toFixed(2)} ₺</p>
           </div>
           <div className="col-span-2 border-t border-slate-800/60 pt-2 mt-1">
-            <p className="text-slate-500 text-xs uppercase font-medium">🏷️ Raftaki Satış Fiyatı</p>
+            <p className="text-slate-500 text-xs uppercase font-medium">🏷️ Raftaki Varsayılan Satış Fiyatı</p>
             <p className="text-lg font-black text-emerald-400 tabular-nums mt-0.5">{product.shelfPrice.toFixed(2)} ₺</p>
           </div>
         </div>
@@ -64,11 +69,54 @@ export function ProductCard({ product, onSetPrice, onQuickRaise, onCampaign, onR
       {/* Operasyonel Butonlar ve Kontroller */}
       <div className="space-y-3 pt-2 border-t border-slate-800/50">
         
-        {/* Fiyat Ayarlama Girişi */}
+        {/* VARYASYON PANELİ: ÖZEL ANLIK MANUEL SATIŞ KISMI */}
+        <div className="bg-slate-950/40 p-2.5 rounded-lg border border-orange-500/10 space-y-2">
+          <p className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">🎯 Özel Manuel Satış Yap</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              placeholder="Kaç Adet?"
+              value={saleQty}
+              onChange={(e) => setSaleQty(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-orange-500 tabular-nums"
+            />
+            <input
+              type="number"
+              placeholder="Özel Fiyat (₺)"
+              value={salePrice}
+              onChange={(e) => setSalePrice(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-orange-500 tabular-nums"
+            />
+          </div>
+          <button
+            onClick={() => {
+              const qty = parseInt(saleQty);
+              const price = parseFloat(salePrice);
+              if (qty > 0 && price > 0) {
+                try {
+                  applyManualSale(product.id, qty, price);
+                  setSaleQty("");
+                  setSalePrice("");
+                  // Sayfanın anında güncellenmesi için tetikleme (varsayılan aksiyon çağrısı)
+                  onSetPrice(product.id, product.shelfPrice); 
+                } catch (err: any) {
+                  alert(err.message || "Satış başarısız!");
+                }
+              } else {
+                alert("Lütfen geçerli adet ve fiyat girin.");
+              }
+            }}
+            className="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold py-1.5 rounded-lg text-xs transition-all shadow-md"
+          >
+            🤝 Belirlenen Şartlarla Satış Yap
+          </button>
+        </div>
+
+        {/* Varsayılan Raf Fiyatı Ayarlama Girişi */}
         <div className="flex space-x-2">
           <input
             type="number"
-            placeholder="Yeni Fiyat"
+            placeholder="Raf Fiyatını Değiştir"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 tabular-nums"

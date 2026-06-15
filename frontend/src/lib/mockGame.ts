@@ -184,9 +184,20 @@ function updatePurchasePrices(products: InternalProduct[], inflationRate: number
   });
 }
 
+// İSTEDİĞİN DÜZELTME: Artık kendi kendine otomatik arka plan satışı yapılmıyor!
 function processSales(state: GameState, products: InternalProduct[]): { state: GameState; products: InternalProduct[] } {
-  let cash = state.cashBalance;
-  const nextProducts = products.map((p) => {
+  // Sude istediği için kendi kendine durduk yere ciro/satış yapılması engellendi.
+  // Sadece ürünlerin mevcut durumları korunarak geri dönülüyor.
+  return { state, products };
+}
+
+// YENİ EKONOMİK TETİKLEYİCİ: Sunum videosunda "Müşterileri Çağır / Satış Yap" butonuna 
+// bastığında ya da sen manuel bir aksiyon aldığında satışın gerçekleşmesi için fonksiyon:
+export function triggerManualSales(): void {
+  if (gameState.isBankrupt) return;
+  
+  let cash = gameState.cashBalance;
+  const nextProducts = inventory.map((p) => {
     const mood = moodFromShelfPurchase(p.id, p.shelfPrice, p.purchasePrice);
     const mult = salesMultiplier(mood);
     const proposed = Math.floor(currentBaseSaleRate * mult);
@@ -195,7 +206,13 @@ function processSales(state: GameState, products: InternalProduct[]): { state: G
     cash += sold * p.shelfPrice;
     return { ...p, stockQuantity: p.stockQuantity - sold };
   });
-  return { state: { ...state, cashBalance: cash }, products: nextProducts };
+
+  gameState = { ...gameState, cashBalance: cash };
+  inventory = nextProducts;
+
+  if (checkBankruptcy(gameState.cashBalance)) {
+    gameState = { ...gameState, isBankrupt: true, cashBalance: 0 };
+  }
 }
 
 export function checkBankruptcy(cashBalance: number): boolean {
@@ -298,4 +315,14 @@ export function applyCreditRestock(productId: number, quantity: number): void {
     description: `💳 VADELİ ALIM: ${p.productEmoji} ${p.productName} ürünü %20 vade farkıyla geleceğe borçlanılarak alındı!`,
     impactFactor: 0.2
   });
+}
+// Belli bir üründen, senin belirlediğin adet ve fiyata göre manuel satış yapar
+export function applyManualSale(productId: number, qty: number, customPrice: number): void {
+  const product = gameState.products.find((p) => p.id === productId);
+  if (!product) throw new Error("Ürün bulunamadı");
+  if (product.stockQuantity < qty) throw new Error("Yetersiz stok!");
+
+  // Stok düşür ve kasaya parayı ekle
+  product.stockQuantity -= qty;
+  gameState.cashBalance += qty * customPrice;
 }
