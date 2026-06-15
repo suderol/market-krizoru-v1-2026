@@ -318,11 +318,11 @@ export function applyCreditRestock(productId: number, quantity: number): void {
 }
 // Belli bir üründen, senin belirlediğin adet ve fiyata göre manuel satış yapar
 export function applyManualSale(productId: number, qty: number, customPrice: number): void {
-  const product = gameState.products.find((p) => p.id === productId);
+  // gameState.products içinde arama yaparken her ürünün tipi 'any' veya 'InternalProduct' olmalı
+  const product = gameState.products.find((p: any) => p.id === productId);
   if (!product) throw new Error("Ürün bulunamadı");
   if (product.stockQuantity < qty) throw new Error("Yetersiz stok!");
 
-  // Stok düşür ve kasaya parayı ekle
   product.stockQuantity -= qty;
   gameState.cashBalance += qty * customPrice;
 }
